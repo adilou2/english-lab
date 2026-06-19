@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="panel active" id="gram-panel">
+  <div class="panel-header">Grammar Checker</div>
+  <div class="panel-sub">Paste your writing below and get inline corrections with explanations.</div>
+  <textarea id="gram-text" placeholder="Paste your paragraph or essay here…"></textarea>
+  <div style="display:flex;gap:8px;align-items:center">
+    <button class="check-btn" id="gram-btn" onclick="checkGrammar()">Check grammar</button>
+    <span id="gram-loading" style="font-size:13px;color:#888;display:none">Analysing…</span>
+  </div>
+  <div id="gram-result" style="display:none"></div>
+  <div id="gram-errors" class="error-cards"></div>
+</div>
+{% endblock %}

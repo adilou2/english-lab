@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>English Learning Lab</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f5f5f4;color:#1c1c1a;display:flex;height:100vh;overflow:hidden}
+#sidebar{width:200px;min-width:200px;background:#fff;border-right:0.5px solid #e0ddd8;display:flex;flex-direction:column;padding:1rem 0}
+.logo{padding:0.75rem 1.25rem 1.25rem;font-size:15px;font-weight:600;color:#1c1c1a;border-bottom:0.5px solid #e0ddd8;margin-bottom:0.5rem}
+.logo span{font-weight:400;color:#888}
+.nav-item{display:flex;align-items:center;gap:10px;padding:0.6rem 1.25rem;cursor:pointer;font-size:14px;color:#555;border-left:3px solid transparent;transition:all 0.15s}
+.nav-item:hover{background:#f5f5f4;color:#1c1c1a}
+.nav-item.active{color:#1c1c1a;background:#f0ede8;border-left-color:#1c1c1a;font-weight:500}
+.sidebar-bottom{margin-top:auto;padding:0.75rem 1rem}
+.export-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:0.5rem;border:0.5px solid #d0cdc8;border-radius:8px;background:#fff;font-size:13px;cursor:pointer;color:#555;transition:all 0.15s}
+.export-btn:hover{background:#f5f5f4;color:#1c1c1a}
+#main{flex:1;overflow:hidden;display:flex;flex-direction:column}
+
+/* mobile bottom nav */
+#bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:0.5px solid #e0ddd8;z-index:100;padding:0.5rem 0 0.75rem}
+.bottom-nav-items{display:flex;justify-content:space-around;align-items:center}
+.bnav-item{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:0.25rem 0.75rem;border-radius:8px;font-size:11px;color:#888;transition:all 0.15s;border:none;background:none}
+.bnav-item.active{color:#1c1c1a;font-weight:500}
+.bnav-item svg{width:20px;height:20px}
+.export-fab{position:fixed;bottom:72px;right:16px;width:40px;height:40px;border-radius:50%;background:#1c1c1a;border:none;display:none;align-items:center;justify-content:center;cursor:pointer;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.15)}
+.export-fab svg{color:#fff}
+
+@media(max-width:640px){
+  #sidebar{display:none}
+  #bottom-nav{display:block}
+  .export-fab{display:flex;bottom:80px}
+  #main{padding-bottom:0}
+  #conv-panel{padding-bottom:0}
+  .chat-messages{padding-bottom:0.5rem}
+  .chat-input-area{position:fixed;bottom:64px;left:0;right:0;z-index:99;background:#fff;border-top:0.5px solid #e0ddd8;padding:0.75rem 1rem}
+  .msg{max-width:90%}
+  #gram-panel,#vocab-panel,#flash-panel{padding:1rem;padding-bottom:80px}
+  .card-stack{height:200px}
+  .grade-btns{gap:6px}
+  .grade-btn{font-size:13px;padding:0.55rem}
+}
+.panel{display:none;flex:1;overflow:hidden}
+.panel.active{display:flex;flex-direction:column}
+.chat-header{padding:1rem 1.5rem;border-bottom:0.5px solid #e0ddd8;background:#fff;display:flex;align-items:center;justify-content:space-between}
+.chat-header h2{font-size:15px;font-weight:500}
+.chat-messages{flex:1;overflow-y:auto;padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:1rem}
+.msg{max-width:70%;padding:0.7rem 1rem;border-radius:12px;font-size:14px;line-height:1.6;word-break:break-word}
+.msg.user{align-self:flex-end;background:#1c1c1a;color:#fff;border-radius:12px 12px 3px 12px}
+.msg.ai{align-self:flex-start;background:#fff;border:0.5px solid #e0ddd8;border-radius:12px 12px 12px 3px}
+.msg.ai .error-note{margin-top:8px;padding-top:8px;border-top:0.5px solid #e0ddd8;font-size:12px;color:#888}
+.chat-input-area{padding:1rem 1.5rem;background:#fff;border-top:0.5px solid #e0ddd8;display:flex;align-items:center;gap:10px}
+#chat-input{flex:1;border:0.5px solid #d0cdc8;border-radius:10px;padding:0.6rem 1rem;font-size:14px;outline:none;resize:none;height:42px;line-height:1.4;font-family:inherit}
+#chat-input:focus{border-color:#888}
+.icon-btn{width:42px;height:42px;border-radius:10px;border:0.5px solid #d0cdc8;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;flex-shrink:0}
+.icon-btn:hover{background:#f5f5f4}
+.icon-btn.recording{background:#fee2e2;border-color:#fca5a5}
+.send-btn{background:#1c1c1a;border-color:#1c1c1a}
+.send-btn:hover{background:#333}
+.ai-typing{font-size:13px;color:#888;padding:0 1.5rem 0.5rem;font-style:italic}
+#gram-panel{padding:1.5rem;overflow-y:auto;gap:1rem}
+#vocab-panel{padding:1.5rem;overflow-y:auto;gap:1rem}
+.panel-header{font-size:15px;font-weight:500;margin-bottom:0.25rem}
+.panel-sub{font-size:13px;color:#888;margin-bottom:1rem}
+#gram-text{width:100%;height:180px;border:0.5px solid #d0cdc8;border-radius:10px;padding:0.75rem 1rem;font-size:14px;font-family:inherit;resize:vertical;outline:none;line-height:1.7}
+#gram-text:focus{border-color:#888}
+.check-btn{padding:0.55rem 1.25rem;background:#1c1c1a;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer}
+.check-btn:hover{background:#333}
+.check-btn:disabled{background:#999;cursor:not-allowed}
+#gram-result{background:#fff;border:0.5px solid #e0ddd8;border-radius:10px;padding:1rem;font-size:14px;line-height:1.8}
+.highlight{background:#fef3c7;border-bottom:2px solid #f59e0b;cursor:pointer;padding:0 2px;border-radius:2px;position:relative}
+.highlight:hover::after{content:attr(data-tip);position:absolute;bottom:100%;left:0;background:#1c1c1a;color:#fff;font-size:12px;padding:4px 8px;border-radius:6px;white-space:nowrap;z-index:10;pointer-events:none;margin-bottom:4px}
+.error-cards{display:flex;flex-direction:column;gap:8px}
+.error-card{background:#fff;border:0.5px solid #e0ddd8;border-radius:8px;padding:0.75rem 1rem;font-size:13px}
+.error-card .orig{color:#dc2626;text-decoration:line-through;margin-bottom:2px}
+.error-card .fixed{color:#16a34a;margin-bottom:2px;font-weight:500}
+.error-card .why{color:#555}
+.word-input-row{display:flex;gap:8px}
+#word-input{flex:1;border:0.5px solid #d0cdc8;border-radius:10px;padding:0.55rem 1rem;font-size:14px;outline:none;font-family:inherit}
+#word-input:focus{border-color:#888}
+.vocab-result{background:#fff;border:0.5px solid #e0ddd8;border-radius:12px;padding:1.25rem;animation:fadeIn 0.3s ease}
+.vocab-word{font-size:22px;font-weight:600;margin-bottom:4px}
+.vocab-pos{font-size:13px;color:#888;margin-bottom:0.75rem}
+.vocab-def{font-size:15px;line-height:1.7;margin-bottom:1rem;color:#333}
+.vocab-examples{display:flex;flex-direction:column;gap:6px;margin-bottom:1rem}
+.vocab-ex{font-size:13px;line-height:1.6;padding-left:1rem;border-left:2px solid #e0ddd8;color:#555}
+.save-word-btn{padding:0.45rem 1rem;border:0.5px solid #d0cdc8;border-radius:8px;background:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px}
+.save-word-btn:hover{background:#f5f5f4}
+.save-word-btn.saved{background:#f0fdf4;border-color:#86efac;color:#16a34a}
+.saved-words{display:flex;flex-direction:column;gap:6px}
+.saved-word-item{background:#fff;border:0.5px solid #e0ddd8;border-radius:8px;padding:0.6rem 1rem;font-size:13px;display:flex;align-items:center;justify-content:space-between}
+.del-btn{background:none;border:none;cursor:pointer;color:#bbb;padding:2px;display:flex;align-items:center}
+.del-btn:hover{color:#dc2626}
+#flash-panel{padding:1.5rem;overflow-y:auto;align-items:center}
+.progress-bar-wrap{width:100%;max-width:480px;margin:0 auto 1.25rem}
+.progress-label{display:flex;justify-content:space-between;font-size:13px;color:#888;margin-bottom:6px}
+.progress-bar-bg{height:6px;background:#e0ddd8;border-radius:999px;overflow:hidden}
+.progress-bar-fill{height:100%;background:#1c1c1a;border-radius:999px;transition:width 0.4s ease}
+.card-stack{position:relative;width:100%;max-width:480px;margin:0 auto;height:240px}
+.flashcard{position:absolute;inset:0;background:#fff;border:0.5px solid #e0ddd8;border-radius:16px;display:flex;align-items:center;justify-content:center;padding:2rem;cursor:pointer;transition:transform 0.6s;transform-style:preserve-3d;user-select:none}
+.flashcard.flipped{transform:rotateY(180deg)}
+.card-front,.card-back{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;backface-visibility:hidden;border-radius:16px}
+.card-back{transform:rotateY(180deg);background:#f9f8f6}
+.card-front p{font-size:16px;line-height:1.7;text-align:center;color:#333}
+.card-back p{font-size:14px;line-height:1.7;text-align:center;color:#555}
+.card-back .correction{font-size:18px;font-weight:500;color:#16a34a;margin-bottom:8px;text-align:center}
+.card-hint{font-size:12px;color:#aaa;margin-top:12px}
+.grade-btns{display:flex;gap:10px;margin-top:1.25rem;width:100%;max-width:480px}
+.grade-btn{flex:1;padding:0.65rem;border-radius:10px;border:0.5px solid;font-size:14px;cursor:pointer;font-weight:500}
+.grade-again{background:#fef2f2;border-color:#fca5a5;color:#dc2626}
+.grade-hard{background:#fffbeb;border-color:#fcd34d;color:#b45309}
+.grade-easy{background:#f0fdf4;border-color:#86efac;color:#16a34a}
+.empty-flash{text-align:center;color:#888;font-size:14px;padding:3rem;background:#fff;border:0.5px solid #e0ddd8;border-radius:16px;width:100%;max-width:480px}
+.card-counter{font-size:13px;color:#888;text-align:center;margin-top:0.75rem;width:100%;max-width:480px}
+.section-label{font-size:11px;font-weight:500;color:#aaa;text-transform:uppercase;letter-spacing:0.08em;padding:0.5rem 1.25rem;margin-top:0.5rem}
+#flash-badge{margin-left:auto;background:#1c1c1a;color:#fff;border-radius:999px;font-size:11px;padding:1px 7px;display:none}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<nav id="sidebar">
+  <div class="logo">English Lab <span>AI</span></div>
+  <div class="section-label">Modes</div>
+  <div class="nav-item active" onclick="switchPanel('conv')" id="nav-conv">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    Conversation
+  </div>
+  <div class="nav-item" onclick="switchPanel('gram')" id="nav-gram">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    Grammar
+  </div>
+  <div class="nav-item" onclick="switchPanel('vocab')" id="nav-vocab">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+    Vocabulary
+  </div>
+  <div class="nav-item" onclick="switchPanel('flash')" id="nav-flash">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+    Flashcards
+    <span id="flash-badge"></span>
+  </div>
+  <div class="sidebar-bottom">
+    <button class="export-btn" onclick="exportData()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export data
+    </button>
+  </div>
+</nav>
+
+<nav id="bottom-nav">
+  <div class="bottom-nav-items">
+    <button class="bnav-item active" id="bnav-conv" onclick="switchPanel('conv')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Conversation
+    </button>
+    <button class="bnav-item" id="bnav-gram" onclick="switchPanel('gram')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Grammar
+    </button>
+    <button class="bnav-item" id="bnav-vocab" onclick="switchPanel('vocab')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      Vocabulary
+    </button>
+    <button class="bnav-item" id="bnav-flash" onclick="switchPanel('flash')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+      Flashcards
+    </button>
+  </div>
+</nav>
+
+<button class="export-fab" onclick="exportData()" title="Export data">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+</button>
+
+<div id="main">
+
+  <!-- CONVERSATION -->
+  <div class="panel active" id="conv-panel">
+    <div class="chat-header">
+      <h2>AI Conversation</h2>
+      <span id="tts-status" style="font-size:12px;color:#888"></span>
+    </div>
+    <div class="chat-messages" id="chat-messages">
+      <div class="msg ai">Hello! I'm your English conversation partner. Talk or type below — I'll respond naturally and quietly save any grammar notes to your flashcards.</div>
+    </div>
+    <div id="ai-typing" class="ai-typing" style="display:none">AI is thinking…</div>
+    <div class="chat-input-area">
+      <button class="icon-btn" id="mic-btn" title="Voice input" onclick="toggleMic()">
+        <svg id="mic-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      </button>
+      <textarea id="chat-input" placeholder="Type a message or press the mic…" rows="1" onkeydown="handleChatKey(event)"></textarea>
+      <button class="icon-btn send-btn" onclick="sendMessage()" title="Send">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- GRAMMAR -->
+  <div class="panel" id="gram-panel">
+    <div class="panel-header">Grammar Checker</div>
+    <div class="panel-sub">Paste your writing below and get inline corrections with explanations.</div>
+    <textarea id="gram-text" placeholder="Paste your paragraph or essay here…"></textarea>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="check-btn" id="gram-btn" onclick="checkGrammar()">Check grammar</button>
+      <span id="gram-loading" style="font-size:13px;color:#888;display:none">Analysing…</span>
+    </div>
+    <div id="gram-result" style="display:none"></div>
+    <div id="gram-errors" class="error-cards"></div>
+  </div>
+
+  <!-- VOCABULARY -->
+  <div class="panel" id="vocab-panel">
+    <div class="panel-header">Vocabulary Builder</div>
+    <div class="panel-sub">Enter a word to get its definition and example sentences, then save it to your library.</div>
+    <div class="word-input-row">
+      <input id="word-input" type="text" placeholder="e.g. ephemeral" onkeydown="if(event.key==='Enter')lookupWord()"/>
+      <button class="check-btn" onclick="lookupWord()" id="vocab-btn">Look up</button>
+    </div>
+    <div id="vocab-result" style="display:none"></div>
+    <div style="margin-top:0.5rem">
+      <div id="saved-words-label" style="font-size:13px;color:#888;margin-bottom:8px;display:none">Saved words</div>
+      <div id="saved-words-list" class="saved-words"></div>
+    </div>
+  </div>
+
+  <!-- FLASHCARDS -->
+  <div class="panel" id="flash-panel">
+    <div class="progress-bar-wrap">
+      <div class="progress-label">
+        <span>Daily goal</span>
+        <span id="prog-text">0 / 10</span>
+      </div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="prog-fill" style="width:0%"></div></div>
+    </div>
+    <div id="card-area"></div>
+    <div class="card-counter" id="card-counter"></div>
+    <div class="grade-btns" id="grade-btns" style="display:none">
+      <button class="grade-btn grade-again" onclick="gradeCard('again')">Again</button>
+      <button class="grade-btn grade-hard" onclick="gradeCard('hard')">Hard</button>
+      <button class="grade-btn grade-easy" onclick="gradeCard('easy')">Easy</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const MODEL="gemini-2.5-flash-lite";
+const API_URL="https://english-lab-proxy.myenglish-hub.workers.dev";
+
+function getData(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch{return null}}
+function setData(k,v){localStorage.setItem(k,JSON.stringify(v))}
+
+function switchPanel(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.bnav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById(id+'-panel').classList.add('active');
+  document.getElementById('nav-'+id).classList.add('active');
+  document.getElementById('bnav-'+id).classList.add('active');
+  if(id==='flash')renderFlashcard();
+  if(id==='vocab')renderSavedWords();
+  updateBadge();
+}
+
+function updateBadge(){
+  const cards=getData('flashcards')||[];
+  const b=document.getElementById('flash-badge');
+  if(cards.length>0){b.textContent=cards.length;b.style.display='inline'}
+  else b.style.display='none';
+}
+updateBadge();
+
+async function claudeCall(system,userMsg){
+  const res=await fetch(API_URL,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+      model:MODEL,
+      system_instruction:{parts:[{text:system}]},
+      contents:[{role:'user',parts:[{text:userMsg}]}]
+    })
+  });
+  const d=await res.json();
+  if(!d.candidates)throw new Error(d.error?.message||'API error');
+  return d.candidates[0].content.parts.map(p=>p.text||'').join('');
+}
+
+// ── CONVERSATION ──
+let recognition=null;
+let isRecording=false;
+const chatHistory=[];
+
+(function initSpeech(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return;
+  recognition=new SR();
+  recognition.lang='en-US';recognition.continuous=false;recognition.interimResults=false;
+  recognition.onresult=e=>{
+    document.getElementById('chat-input').value=e.results[0][0].transcript;
+    stopRecording();sendMessage();
+  };
+  recognition.onend=stopRecording;
+  recognition.onerror=stopRecording;
+})();
+
+function toggleMic(){
+  if(!recognition){alert('Speech recognition not supported in this browser.');return;}
+  isRecording?stopRecording():startRecording();
+}
+function startRecording(){
+  isRecording=true;recognition.start();
+  const btn=document.getElementById('mic-btn');
+  btn.classList.add('recording');
+  btn.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`;
+}
+function stopRecording(){
+  isRecording=false;try{recognition&&recognition.stop()}catch(e){}
+  const btn=document.getElementById('mic-btn');
+  btn.classList.remove('recording');
+  btn.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`;
+}
+
+function handleChatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}
+
+async function sendMessage(){
+  const inp=document.getElementById('chat-input');
+  const text=inp.value.trim();if(!text)return;
+  inp.value='';
+  appendMsg(text,'user');
+  chatHistory.push({role:'user',content:text});
+  document.getElementById('ai-typing').style.display='block';
+  try{
+    const sys=`You are an English conversation partner helping the user practice spoken English. IMPORTANT RULES:
+1. NEVER say you are a text-based AI or that you cannot have spoken conversations. The user is using voice input and text-to-speech so this IS a spoken conversation.
+2. Always reply naturally and conversationally in 2-3 sentences, like a friendly native English speaker would.
+3. Keep the conversation flowing — ask follow-up questions to encourage the user to keep speaking.
+4. Silently check the user's message for grammar errors.
+5. Return ONLY valid JSON, no markdown, no extra text:
+{"reply":"...","errors":[{"original":"...","correction":"...","explanation":"..."}]}
+Empty array if no errors.`;
+    const msgs=chatHistory.slice(-8).map(m=>({
+      role:m.role==='assistant'?'model':'user',
+      parts:[{text:m.content}]
+    }));
+    const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:MODEL,
+        system_instruction:{parts:[{text:sys}]},
+        contents:msgs
+      })});
+    const d=await res.json();
+    if(!d.candidates)throw new Error(d.error?.message||'API error');
+    const raw=d.candidates[0].content.parts.map(p=>p.text||'').join('').trim().replace(/```json|```/g,'').trim();
+    const parsed=JSON.parse(raw);
+    chatHistory.push({role:'assistant',content:parsed.reply});
+    document.getElementById('ai-typing').style.display='none';
+    appendMsg(parsed.reply,'ai',parsed.errors);
+    speak(parsed.reply);
+    if(parsed.errors&&parsed.errors.length){saveErrorsToFlashcards(parsed.errors);updateBadge();}
+  }catch(err){
+    document.getElementById('ai-typing').style.display='none';
+    appendMsg('Sorry, something went wrong. Please try again.','ai');
+  }
+}
+
+function appendMsg(text,role,errors){
+  const wrap=document.getElementById('chat-messages');
+  const div=document.createElement('div');
+  div.className='msg '+role;div.textContent=text;
+  if(errors&&errors.length){
+    const note=document.createElement('div');
+    note.className='error-note';
+    note.textContent=errors.length+' grammar note'+(errors.length>1?'s':'')+' saved to flashcards.';
+    div.appendChild(note);
+  }
+  wrap.appendChild(div);wrap.scrollTop=wrap.scrollHeight;
+}
+
+function speak(text){
+  const synth=window.speechSynthesis;if(!synth)return;
+  synth.cancel();
+  const utt=new SpeechSynthesisUtterance(text);
+  utt.lang='en-US';utt.rate=0.95;utt.pitch=1;
+  const v=synth.getVoices().find(v=>v.lang.startsWith('en')&&v.localService);
+  if(v)utt.voice=v;
+  const st=document.getElementById('tts-status');
+  st.textContent='Speaking…';utt.onend=()=>st.textContent='';
+  synth.speak(utt);
+}
+
+function saveErrorsToFlashcards(errors){
+  const cards=getData('flashcards')||[];
+  errors.forEach(e=>cards.push({id:Date.now()+Math.random(),type:'grammar',front:e.original,back:e.correction,explanation:e.explanation,source:'conversation',added:new Date().toISOString()}));
+  setData('flashcards',cards);
+}
+
+// ── GRAMMAR ──
+async function checkGrammar(){
+  const text=document.getElementById('gram-text').value.trim();
+  if(!text){alert('Please enter some text first.');return;}
+  const btn=document.getElementById('gram-btn');
+  const loading=document.getElementById('gram-loading');
+  btn.disabled=true;loading.style.display='inline';
+  document.getElementById('gram-result').style.display='none';
+  document.getElementById('gram-errors').innerHTML='';
+  try{
+    const sys=`You are a grammar checker. Return ONLY valid JSON:
+{"annotated":"<original text with <mark data-i='N'>word</mark> tags on errors>","errors":[{"id":N,"original":"...","correction":"...","explanation":"..."}]}
+Number errors from 0.`;
+    const raw=await claudeCall(sys,text);
+    const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    const result=document.getElementById('gram-result');
+    result.style.display='block';
+    result.innerHTML=parsed.annotated.replace(/<mark data-i='(\d+)'>(.*?)<\/mark>/g,(_,i,w)=>{
+      const e=parsed.errors[+i];
+      return `<span class="highlight" data-tip="${e?e.correction:''}">${w}</span>`;
+    });
+    const errWrap=document.getElementById('gram-errors');
+    if(parsed.errors.length===0){
+      errWrap.innerHTML='<div class="error-card" style="color:#16a34a">No grammar errors found. Great writing!</div>';
+    }else{
+      parsed.errors.forEach(e=>{
+        errWrap.innerHTML+=`<div class="error-card"><div class="orig">${e.original}</div><div class="fixed">${e.correction}</div><div class="why">${e.explanation}</div></div>`;
+      });
+    }
+  }catch(e){
+    document.getElementById('gram-errors').innerHTML='<div class="error-card" style="color:#dc2626">Error connecting. Please try again.</div>';
+  }
+  btn.disabled=false;loading.style.display='none';
+}
+
+// ── VOCABULARY ──
+let currentVocabWord=null;
+
+async function lookupWord(){
+  const word=document.getElementById('word-input').value.trim();if(!word)return;
+  const btn=document.getElementById('vocab-btn');
+  btn.disabled=true;btn.textContent='Looking up…';
+  document.getElementById('vocab-result').style.display='none';
+  try{
+    const sys=`You are a dictionary. Return ONLY valid JSON (no markdown):
+{"word":"...","pos":"...","definition":"...","examples":["...","...","..."]}`;
+    const raw=await claudeCall(sys,'Define: '+word);
+    const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    currentVocabWord=parsed;
+    const r=document.getElementById('vocab-result');
+    r.style.display='block';r.className='vocab-result';
+    r.innerHTML=`<div class="vocab-word">${parsed.word}</div>
+<div class="vocab-pos">${parsed.pos}</div>
+<div class="vocab-def">${parsed.definition}</div>
+<div class="vocab-examples">${parsed.examples.map(ex=>`<div class="vocab-ex">${ex}</div>`).join('')}</div>
+<button class="save-word-btn" id="save-btn" onclick="saveWord()">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+  Save to library
+</button>`;
+  }catch(e){
+    const r=document.getElementById('vocab-result');
+    r.style.display='block';r.innerHTML='<div style="color:#dc2626;font-size:14px">Error looking up word. Try again.</div>';
+  }
+  btn.disabled=false;btn.textContent='Look up';
+}
+
+function saveWord(){
+  if(!currentVocabWord)return;
+  const words=getData('vocab')||[];
+  if(words.find(w=>w.word===currentVocabWord.word)){
+    document.getElementById('save-btn').textContent='Already saved';return;
+  }
+  words.push({...currentVocabWord,saved:new Date().toISOString()});
+  setData('vocab',words);
+  const cards=getData('flashcards')||[];
+  cards.push({id:Date.now()+Math.random(),type:'vocab',front:'Define: '+currentVocabWord.word,back:currentVocabWord.definition,explanation:currentVocabWord.examples.join(' | '),source:'vocabulary',added:new Date().toISOString()});
+  setData('flashcards',cards);
+  updateBadge();
+  const btn=document.getElementById('save-btn');
+  btn.className='save-word-btn saved';
+  btn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Saved!`;
+  renderSavedWords();
+}
+
+function renderSavedWords(){
+  const words=getData('vocab')||[];
+  const list=document.getElementById('saved-words-list');
+  const label=document.getElementById('saved-words-label');
+  list.innerHTML='';
+  if(!words.length){label.style.display='none';return;}
+  label.style.display='block';
+  [...words].reverse().forEach((w,i)=>{
+    const idx=words.length-1-i;
+    const item=document.createElement('div');
+    item.className='saved-word-item';
+    item.innerHTML=`<div><strong>${w.word}</strong> <span style="color:#aaa;font-size:12px">(${w.pos})</span><br><span>${w.definition.substring(0,70)}${w.definition.length>70?'…':''}</span></div>
+<button class="del-btn" onclick="deleteWord(${idx})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
+    list.appendChild(item);
+  });
+}
+
+function deleteWord(i){
+  const words=getData('vocab')||[];
+  words.splice(i,1);setData('vocab',words);renderSavedWords();
+}
+
+// ── FLASHCARDS ──
+let cards=[],cardIdx=0,cardFlipped=false;
+let dailyDone=parseInt(getData('daily_done')||'0');
+const todayKey=new Date().toDateString();
+if(getData('daily_date')!==todayKey){setData('daily_done','0');setData('daily_date',todayKey);dailyDone=0;}
+
+function renderFlashcard(){
+  cards=getData('flashcards')||[];
+  const area=document.getElementById('card-area');
+  const grade=document.getElementById('grade-btns');
+  const counter=document.getElementById('card-counter');
+  updateProgress();
+  if(!cards.length){
+    area.innerHTML=`<div class="empty-flash"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg><p>No flashcards yet. Have a conversation or save vocabulary words to fill your deck!</p></div>`;
+    grade.style.display='none';counter.textContent='';return;
+  }
+  if(cardIdx>=cards.length)cardIdx=0;
+  const card=cards[cardIdx];
+  cardFlipped=false;
+  area.innerHTML=`<div class="card-stack"><div class="flashcard" id="flashcard" onclick="flipCard()">
+    <div class="card-front"><p>${card.front}</p><div class="card-hint">Tap to reveal</div></div>
+    <div class="card-back"><div class="correction">${card.back}</div><p>${card.explanation||''}</p></div>
+  </div></div>`;
+  grade.style.display='flex';
+  counter.textContent=`Card ${cardIdx+1} of ${cards.length}`;
+}
+
+function flipCard(){
+  cardFlipped=!cardFlipped;
+  const fc=document.getElementById('flashcard');
+  if(fc)fc.classList.toggle('flipped',cardFlipped);
+}
+
+function gradeCard(grade){
+  cards=getData('flashcards')||[];
+  if(grade==='easy'){cards.splice(cardIdx,1);dailyDone++;setData('daily_done',String(dailyDone));if(cardIdx>=cards.length)cardIdx=0;}
+  else if(grade==='hard'){const c=cards.splice(cardIdx,1)[0];cards.push(c);if(cardIdx>=cards.length)cardIdx=0;}
+  else{cardIdx=(cardIdx+1)%Math.max(1,cards.length);}
+  setData('flashcards',cards);updateBadge();renderFlashcard();
+}
+
+function updateProgress(){
+  const pct=Math.min(100,Math.round(dailyDone/10*100));
+  document.getElementById('prog-fill').style.width=pct+'%';
+  document.getElementById('prog-text').textContent=Math.min(dailyDone,10)+' / 10';
+}
+
+function exportData(){
+  const blob=new Blob([JSON.stringify({flashcards:getData('flashcards')||[],vocabulary:getData('vocab')||[],exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='english-lab-data.json';a.click();
+}
+
+renderSavedWords();
+</script>
+</body>
+</html>

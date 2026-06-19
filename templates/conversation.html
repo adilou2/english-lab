@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="panel active" id="conv-panel">
+  <div class="chat-header">
+    <h2>AI Conversation</h2>
+    <span id="tts-status" style="font-size:12px;color:#888"></span>
+  </div>
+  <div class="chat-messages" id="chat-messages">
+    <div class="msg ai">Hello! I'm your English conversation partner. Talk or type below — I'll respond naturally and quietly save any grammar notes to your flashcards.</div>
+  </div>
+  <div id="ai-typing" class="ai-typing" style="display:none">AI is thinking…</div>
+  <div class="chat-input-area">
+    <button class="icon-btn" id="mic-btn" title="Voice input" onclick="toggleMic()">
+      <svg id="mic-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+    </button>
+    <textarea id="chat-input" placeholder="Type a message or press the mic…" rows="1" onkeydown="handleChatKey(event)"></textarea>
+    <button class="icon-btn send-btn" onclick="sendMessage()" title="Send">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </div>
+</div>
+{% endblock %}

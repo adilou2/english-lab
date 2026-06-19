@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>English Learning Lab</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<nav id="sidebar">
+  <div class="logo">English Lab <span>AI</span></div>
+  <div class="section-label">Modes</div>
+  <div class="nav-item {% if request.endpoint == 'conversation' %}active{% endif %}" onclick="window.location.href='{{ url_for('conversation') }}'" id="nav-conv">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    Conversation
+  </div>
+  <div class="nav-item {% if request.endpoint == 'grammar' %}active{% endif %}" onclick="window.location.href='{{ url_for('grammar') }}'" id="nav-gram">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    Grammar
+  </div>
+  <div class="nav-item {% if request.endpoint == 'vocabulary' %}active{% endif %}" onclick="window.location.href='{{ url_for('vocabulary') }}'" id="nav-vocab">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+    Vocabulary
+  </div>
+  <div class="nav-item {% if request.endpoint == 'flashcards' %}active{% endif %}" onclick="window.location.href='{{ url_for('flashcards') }}'" id="nav-flash">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+    Flashcards
+    <span id="flash-badge"></span>
+  </div>
+  <div class="sidebar-bottom">
+    <button class="export-btn" onclick="exportData()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export data
+    </button>
+  </div>
+</nav>
+
+<nav id="bottom-nav">
+  <div class="bottom-nav-items">
+    <button class="bnav-item {% if request.endpoint == 'conversation' %}active{% endif %}" id="bnav-conv" onclick="window.location.href='{{ url_for('conversation') }}'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Conversation
+    </button>
+    <button class="bnav-item {% if request.endpoint == 'grammar' %}active{% endif %}" id="bnav-gram" onclick="window.location.href='{{ url_for('grammar') }}'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Grammar
+    </button>
+    <button class="bnav-item {% if request.endpoint == 'vocabulary' %}active{% endif %}" id="bnav-vocab" onclick="window.location.href='{{ url_for('vocabulary') }}'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      Vocabulary
+    </button>
+    <button class="bnav-item {% if request.endpoint == 'flashcards' %}active{% endif %}" id="bnav-flash" onclick="window.location.href='{{ url_for('flashcards') }}'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+      Flashcards
+    </button>
+  </div>
+</nav>
+
+<button class="export-fab" onclick="exportData()" title="Export data">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+</button>
+
+<div id="main">
+  {% block content %}{% endblock %}
+</div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

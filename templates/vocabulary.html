@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="panel active" id="vocab-panel">
+  <div class="panel-header">Vocabulary Builder</div>
+  <div class="panel-sub">Enter a word to get its definition and example sentences, then save it to your library.</div>
+  <div class="word-input-row">
+    <input id="word-input" type="text" placeholder="e.g. ephemeral" onkeydown="if(event.key==='Enter')lookupWord()"/>
+    <button class="check-btn" onclick="lookupWord()" id="vocab-btn">Look up</button>
+  </div>
+  <div id="vocab-result" style="display:none"></div>
+  <div style="margin-top:0.5rem">
+    <div id="saved-words-label" style="font-size:13px;color:#888;margin-bottom:8px;display:none">Saved words</div>
+    <div id="saved-words-list" class="saved-words"></div>
+  </div>
+</div>
+{% endblock %}
