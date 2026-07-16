@@ -88,8 +88,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-window.addEventListener('beforeunload', preserveFlashcardState);
-
 // ── CONVERSATION ──
 let recognition = null;
 let isRecording = false;
@@ -374,6 +372,7 @@ let dailyDone = 0;
 
 // Preserve flashcard state when navigating
 function preserveFlashcardState() {
+  if (!document.getElementById('flash-panel')) return;
   sessionStorage.setItem('flashcardIdx', cardIdx);
   sessionStorage.setItem('flashcardFlipped', cardFlipped);
 }
@@ -386,7 +385,6 @@ function restoreFlashcardState() {
 }
 
 window.addEventListener('beforeunload', preserveFlashcardState);
-window.addEventListener('pagehide', preserveFlashcardState);
 
 async function renderFlashcard() {
   cards = await getData('/flashcards') || [];
