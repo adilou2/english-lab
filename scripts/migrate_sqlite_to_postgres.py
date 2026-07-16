@@ -124,7 +124,7 @@ def main():
         pg_url = pg_url.replace("postgresql://", f"{driver}://", 1)
 
     # Render requires SSL for external Postgres connections.
-    if "sslmode=" not in pg_url:
+    if pg_url.startswith(("postgres://", "postgresql://")) and "sslmode=" not in pg_url:
         separator = "&" if "?" in pg_url else "?"
         pg_url += f"{separator}sslmode=require"
 
