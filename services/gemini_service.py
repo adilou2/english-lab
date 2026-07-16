@@ -1,18 +1,19 @@
 """
 Gemini API service for handling AI-powered features.
-Uses google-generativeai library for direct API calls.
+Uses REST API calls via requests library for Python 3.14 compatibility.
 """
-import google.generativeai as genai
+import requests
 from config import Config
 import json
-import re
+import asyncio
 
 class GeminiService:
     def __init__(self):
         if not Config.GEMINI_API_KEY:
             raise ValueError("GEMINI_API_KEY not set in environment variables")
-        genai.configure(api_key=Config.GEMINI_API_KEY)
-        self.model = genai.GenerativeModel(Config.GEMINI_MODEL)
+        self.api_key = Config.GEMINI_API_KEY
+        self.model = Config.GEMINI_MODEL
+        self.api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.api_key}"
     
     async def chat_conversation(self, chat_history, user_message):
         """
@@ -38,21 +39,21 @@ Empty array if no errors."""
         contents.append({"role": "user", "parts": [{"text": user_message}]})
         
         try:
-            response = self.model.generate_content(contents)
-            print(f"Gemini response text: {response.text}")
-            if not response.text:
+            response = await asyncio.to_thread(requests.post, self.api_url, json={"contents": contents}, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            if not data.get('candidates'):
                 print("Gemini returned empty response")
                 return {
                     'reply': 'Sorry, the AI returned an empty response. Please try again.',
                     'errors': []
                 }
-            raw_text = response.text.strip().replace('```json', '').replace('```', '').strip()
+            raw_text = data['candidates'][0]['content']['parts'][0]['text'].strip().replace('```json', '').replace('```', '').strip()
             print(f"Parsed text: {raw_text}")
             parsed = json.loads(raw_text)
             return parsed
         except json.JSONDecodeError as e:
             print(f"JSON parsing error: {e}")
-            print(f"Raw response: {response.text if 'response' in locals() else 'No response'}")
             return {
                 'reply': 'Sorry, the AI response format was invalid. Please try again.',
                 'errors': []
@@ -74,10 +75,10 @@ Empty array if no errors."""
 Number errors from 0."""
         
         try:
-            response = self.model.generate_content([
-                {"role": "user", "parts": [{"text": system_prompt + "\n\n" + text}]}
-            ])
-            raw_text = response.text.strip().replace('```json', '').replace('```', '').strip()
+            response = await asyncio.to_thread(requests.post, self.api_url, json={"contents": [{"role": "user", "parts": [{"text": system_prompt + "\n\n" + text}]}]}, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            raw_text = data['candidates'][0]['content']['parts'][0]['text'].strip().replace('```json', '').replace('```', '').strip()
             parsed = json.loads(raw_text)
             return parsed
         except Exception as e:
@@ -96,10 +97,10 @@ Number errors from 0."""
 {"word":"...","pos":"...","definition":"...","examples":["...","...","..."]}"""
         
         try:
-            response = self.model.generate_content([
-                {"role": "user", "parts": [{"text": system_prompt + "\n\nDefine: " + word}]}
-            ])
-            raw_text = response.text.strip().replace('```json', '').replace('```', '').strip()
+            response = await asyncio.to_thread(requests.post, self.api_url, json={"contents": [{"role": "user", "parts": [{"text": system_prompt + "\n\nDefine: " + word}]}]}, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            raw_text = data['candidates'][0]['content']['parts'][0]['text'].strip().replace('```json', '').replace('```', '').strip()
             parsed = json.loads(raw_text)
             return parsed
         except Exception as e:

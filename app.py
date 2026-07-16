@@ -6,6 +6,7 @@ import json
 from datetime import datetime
 import os
 import asyncio
+import re
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -14,6 +15,36 @@ db.init_app(app)
 
 with app.app_context():
     db.create_all()
+
+# ── Input Validation Functions ──
+def sanitize_text(text, max_length=10000):
+    """Sanitize text input to prevent XSS and injection attacks"""
+    if not text or not isinstance(text, str):
+        return ""
+    text = text.replace('\x00', '')
+    text = text[:max_length]
+    text = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.IGNORECASE | re.DOTALL)
+    text = re.sub(r'<iframe[^>]*>.*?</iframe>', '', text, flags=re.IGNORECASE | re.DOTALL)
+    text = re.sub(r'<object[^>]*>.*?</object>', '', text, flags=re.IGNORECASE | re.DOTALL)
+    text = re.sub(r'<embed[^>]*>', '', text, flags=re.IGNORECASE)
+    return text.strip()
+
+def validate_id(id_value):
+    """Validate ID parameter"""
+    try:
+        return float(id_value) if '.' in str(id_value) else int(id_value)
+    except (ValueError, TypeError):
+        return None
+
+# ── Security Headers Middleware ──
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
 
 @app.route('/')
 def index():
@@ -36,14 +67,30 @@ def flashcards():
     return render_template('flashcards.html')
 
 # API Routes
+@app.route('/api/chat/history', methods=['GET'])
+def get_chat_history():
+    messages = ChatMessage.query.order_by(ChatMessage.timestamp.desc()).limit(50).all()
+    return jsonify([{
+        'id': m.id,
+        'role': m.role,
+        'content': m.content,
+        'timestamp': m.timestamp.isoformat()
+    } for m in reversed(messages)])
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
     print("=== /api/chat called ===")
     data = request.json
-    user_message = data.get('message')
+    user_message = sanitize_text(data.get('message', ''), max_length=5000)
     chat_history = data.get('history', [])
     print(f"Message: {user_message}")
     print(f"History length: {len(chat_history)}")
+    
+    if not user_message:
+        return jsonify({
+            'reply': 'Please enter a message.',
+            'errors': []
+        }), 400
     
     # Save user message
     chat_msg = ChatMessage(role='user', content=user_message)
@@ -88,7 +135,13 @@ def chat():
 @app.route('/api/grammar', methods=['POST'])
 def check_grammar():
     data = request.json
-    text = data.get('text')
+    text = sanitize_text(data.get('text', ''), max_length=10000)
+    
+    if not text:
+        return jsonify({
+            'annotated': '',
+            'errors': []
+        }), 400
     
     # Call Gemini API for grammar check
     try:
@@ -105,7 +158,15 @@ def check_grammar():
 @app.route('/api/vocabulary', methods=['POST'])
 def lookup_vocabulary():
     data = request.json
-    word = data.get('word')
+    word = sanitize_text(data.get('word', ''), max_length=100)
+    
+    if not word:
+        return jsonify({
+            'word': '',
+            'pos': 'unknown',
+            'definition': 'Please enter a word.',
+            'examples': []
+        }), 400
     
     # Check if it's a save operation (already looked up)
     if data.get('pos') and data.get('definition'):
@@ -114,8 +175,8 @@ def lookup_vocabulary():
         if not existing:
             vocab = Vocabulary(
                 word=word,
-                pos=data.get('pos'),
-                definition=data.get('definition'),
+                pos=sanitize_text(data.get('pos', ''), max_length=20),
+                definition=sanitize_text(data.get('definition', ''), max_length=1000),
                 examples=json.dumps(data.get('examples', []))
             )
             db.session.add(vocab)
@@ -150,7 +211,9 @@ def get_vocabulary():
 @app.route('/api/vocabulary', methods=['DELETE'])
 def delete_vocabulary():
     data = request.json
-    word_id = data.get('id')
+    word_id = validate_id(data.get('id'))
+    if not word_id:
+        return jsonify({'success': False, 'error': 'Invalid ID'}), 400
     word = Vocabulary.query.get(word_id)
     if word:
         db.session.delete(word)
@@ -173,12 +236,12 @@ def get_flashcards():
 def save_flashcard():
     data = request.json
     card = Flashcard(
-        id=data.get('id', datetime.now().timestamp()),
-        type=data.get('type'),
-        front=data.get('front'),
-        back=data.get('back'),
-        explanation=data.get('explanation'),
-        source=data.get('source')
+        id=validate_id(data.get('id')) or datetime.now().timestamp(),
+        type=sanitize_text(data.get('type', ''), max_length=20),
+        front=sanitize_text(data.get('front', ''), max_length=500),
+        back=sanitize_text(data.get('back', ''), max_length=500),
+        explanation=sanitize_text(data.get('explanation', ''), max_length=1000),
+        source=sanitize_text(data.get('source', ''), max_length=20)
     )
     db.session.add(card)
     db.session.commit()
@@ -186,6 +249,9 @@ def save_flashcard():
 
 @app.route('/api/flashcards/<float:card_id>', methods=['DELETE'])
 def delete_flashcard(card_id):
+    card_id = validate_id(card_id)
+    if not card_id:
+        return jsonify({'success': False, 'error': 'Invalid ID'}), 400
     card = Flashcard.query.get(card_id)
     if card:
         db.session.delete(card)
@@ -205,12 +271,13 @@ def get_progress():
 @app.route('/api/progress', methods=['POST'])
 def update_progress():
     data = request.json
+    daily_done = validate_id(data.get('daily_done', 0)) or 0
     today = datetime.now().strftime('%Y-%m-%d')
     progress = UserProgress.query.filter_by(daily_date=today).first()
     if progress:
-        progress.daily_done = data.get('daily_done', 0)
+        progress.daily_done = daily_done
     else:
-        progress = UserProgress(daily_done=data.get('daily_done', 0), daily_date=today)
+        progress = UserProgress(daily_done=daily_done, daily_date=today)
         db.session.add(progress)
     db.session.commit()
     return jsonify({'success': True})
@@ -246,4 +313,10 @@ def export_data():
     return send_file(temp_file.name, as_attachment=True, download_name='english-lab-data.json')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    import os
+    port = int(os.environ.get('PORT', 5000))
+    try:
+        from waitress import serve
+        serve(app, host='0.0.0.0', port=port)
+    except ImportError:
+        app.run(host='0.0.0.0', port=port, debug=True)

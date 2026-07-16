@@ -102,7 +102,7 @@ body{font-family:system-ui,sans-serif;background:#f5f5f4;color:#1c1c1a;display:f
 .flashcard.flipped{transform:rotateY(180deg)}
 .card-front,.card-back{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;backface-visibility:hidden;border-radius:16px}
 .card-back{transform:rotateY(180deg);background:#f9f8f6}
-.card-front p{font-size:16px;line-height:1.7;text-align:center;color:#333}
+.card-front p{font-size:18px;line-height:1.7;text-align:left;color:#333;word-wrap:break-word;white-space:normal;padding:0 1rem}
 .card-back p{font-size:14px;line-height:1.7;text-align:center;color:#555}
 .card-back .correction{font-size:18px;font-weight:500;color:#16a34a;margin-bottom:8px;text-align:center}
 .card-hint{font-size:12px;color:#aaa;margin-top:12px}
@@ -252,19 +252,30 @@ function getData(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch
 function setData(k,v){localStorage.setItem(k,JSON.stringify(v))}
 
 function switchPanel(id){
+  preserveFlashcardState();
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.querySelectorAll('.bnav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById(id+'-panel').classList.add('active');
   document.getElementById('nav-'+id).classList.add('active');
   document.getElementById('bnav-'+id).classList.add('active');
-  if(id==='flash')renderFlashcard();
+  if(id==='flash'){
+    restoreFlashcardState();
+    renderFlashcard();
+  }
   if(id==='vocab')renderSavedWords();
   updateBadge();
 }
 
-function updateBadge(){
-  const cards=getData('flashcards')||[];
+async function updateBadge(){
+  let cards=[];
+  try{
+    const res=await fetch('/api/flashcards');
+    if(res.ok)cards=await res.json();
+    else cards=getData('flashcards')||[];
+  }catch(e){
+    cards=getData('flashcards')||[];
+  }
   const b=document.getElementById('flash-badge');
   if(cards.length>0){b.textContent=cards.length;b.style.display='inline'}
   else b.style.display='none';
@@ -290,6 +301,24 @@ async function claudeCall(system,userMsg){
 let recognition=null;
 let isRecording=false;
 const chatHistory=[];
+
+async function loadChatHistory(){
+  try{
+    const res=await fetch('/api/chat/history');
+    if(res.ok){
+      const messages=await res.json();
+      chatHistory.length=0;
+      const chatArea=document.getElementById('chat-area');
+      if(chatArea)chatArea.innerHTML='';
+      messages.forEach(m=>{
+        chatHistory.push({role:m.role,content:m.content});
+        appendMsg(m.content,m.role);
+      });
+    }
+  }catch(e){
+    console.log('Failed to load chat history:',e);
+  }
+}
 
 (function initSpeech(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -389,10 +418,17 @@ function speak(text){
   synth.speak(utt);
 }
 
-function saveErrorsToFlashcards(errors){
-  const cards=getData('flashcards')||[];
-  errors.forEach(e=>cards.push({id:Date.now()+Math.random(),type:'grammar',front:e.original,back:e.correction,explanation:e.explanation,source:'conversation',added:new Date().toISOString()}));
-  setData('flashcards',cards);
+async function saveErrorsToFlashcards(errors){
+  try{
+    for(const e of errors){
+      const card={id:Date.now()+Math.random(),type:'grammar',front:e.original,back:e.correction,explanation:e.explanation,source:'conversation'};
+      await fetch('/api/flashcards',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(card)});
+    }
+  }catch(e){
+    const cards=getData('flashcards')||[];
+    errors.forEach(e=>cards.push({id:Date.now()+Math.random(),type:'grammar',front:e.original,back:e.correction,explanation:e.explanation,source:'conversation',added:new Date().toISOString()}));
+    setData('flashcards',cards);
+  }
 }
 
 // ── GRAMMAR ──
@@ -461,58 +497,132 @@ async function lookupWord(){
   btn.disabled=false;btn.textContent='Look up';
 }
 
-function saveWord(){
+async function saveWord(){
   if(!currentVocabWord)return;
-  const words=getData('vocab')||[];
-  if(words.find(w=>w.word===currentVocabWord.word)){
-    document.getElementById('save-btn').textContent='Already saved';return;
+  try{
+    const res=await fetch('/api/vocabulary',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:currentVocabWord.word,pos:currentVocabWord.pos,definition:currentVocabWord.definition,examples:currentVocabWord.examples})});
+    if(res.ok){
+      const card={id:Date.now()+Math.random(),type:'vocab',front:'Define: '+currentVocabWord.word,back:currentVocabWord.definition,explanation:currentVocabWord.examples.join(' | '),source:'vocabulary'};
+      await fetch('/api/flashcards',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(card)});
+      updateBadge();
+      const btn=document.getElementById('save-btn');
+      btn.className='save-word-btn saved';
+      btn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Saved!`;
+      renderSavedWords();
+    }else{
+      const words=getData('vocab')||[];
+      if(words.find(w=>w.word===currentVocabWord.word)){
+        document.getElementById('save-btn').textContent='Already saved';return;
+      }
+      words.push({...currentVocabWord,saved:new Date().toISOString()});
+      setData('vocab',words);
+      const cards=getData('flashcards')||[];
+      cards.push({id:Date.now()+Math.random(),type:'vocab',front:'Define: '+currentVocabWord.word,back:currentVocabWord.definition,explanation:currentVocabWord.examples.join(' | '),source:'vocabulary',added:new Date().toISOString()});
+      setData('flashcards',cards);
+      updateBadge();
+      const btn=document.getElementById('save-btn');
+      btn.className='save-word-btn saved';
+      btn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Saved!`;
+      renderSavedWords();
+    }
+  }catch(e){
+    const words=getData('vocab')||[];
+    if(words.find(w=>w.word===currentVocabWord.word)){
+      document.getElementById('save-btn').textContent='Already saved';return;
+    }
+    words.push({...currentVocabWord,saved:new Date().toISOString()});
+    setData('vocab',words);
+    const cards=getData('flashcards')||[];
+    cards.push({id:Date.now()+Math.random(),type:'vocab',front:'Define: '+currentVocabWord.word,back:currentVocabWord.definition,explanation:currentVocabWord.examples.join(' | '),source:'vocabulary',added:new Date().toISOString()});
+    setData('flashcards',cards);
+    updateBadge();
+    const btn=document.getElementById('save-btn');
+    btn.className='save-word-btn saved';
+    btn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Saved!`;
+    renderSavedWords();
   }
-  words.push({...currentVocabWord,saved:new Date().toISOString()});
-  setData('vocab',words);
-  const cards=getData('flashcards')||[];
-  cards.push({id:Date.now()+Math.random(),type:'vocab',front:'Define: '+currentVocabWord.word,back:currentVocabWord.definition,explanation:currentVocabWord.examples.join(' | '),source:'vocabulary',added:new Date().toISOString()});
-  setData('flashcards',cards);
-  updateBadge();
-  const btn=document.getElementById('save-btn');
-  btn.className='save-word-btn saved';
-  btn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Saved!`;
-  renderSavedWords();
 }
 
-function renderSavedWords(){
-  const words=getData('vocab')||[];
+async function renderSavedWords(){
+  let words=[];
+  try{
+    const res=await fetch('/api/vocabulary');
+    if(res.ok)words=await res.json();
+    else words=getData('vocab')||[];
+  }catch(e){
+    words=getData('vocab')||[];
+  }
   const list=document.getElementById('saved-words-list');
   const label=document.getElementById('saved-words-label');
   list.innerHTML='';
   if(!words.length){label.style.display='none';return;}
   label.style.display='block';
-  [...words].reverse().forEach((w,i)=>{
-    const idx=words.length-1-i;
+  [...words].reverse().forEach((w)=>{
     const item=document.createElement('div');
     item.className='saved-word-item';
     item.innerHTML=`<div><strong>${w.word}</strong> <span style="color:#aaa;font-size:12px">(${w.pos})</span><br><span>${w.definition.substring(0,70)}${w.definition.length>70?'…':''}</span></div>
-<button class="del-btn" onclick="deleteWord(${idx})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
+<button class="del-btn" onclick="deleteWord(${w.id})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
     list.appendChild(item);
   });
 }
 
-function deleteWord(i){
-  const words=getData('vocab')||[];
-  words.splice(i,1);setData('vocab',words);renderSavedWords();
+async function deleteWord(id){
+  try{
+    await fetch('/api/vocabulary',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+    renderSavedWords();
+  }catch(e){
+    const words=getData('vocab')||[];
+    const idx=words.findIndex(w=>w.id===id);
+    if(idx!==-1){
+      words.splice(idx,1);
+      setData('vocab',words);
+      renderSavedWords();
+    }
+  }
 }
 
 // ── FLASHCARDS ──
 let cards=[],cardIdx=0,cardFlipped=false;
-let dailyDone=parseInt(getData('daily_done')||'0');
+let dailyDone=0;
 const todayKey=new Date().toDateString();
-if(getData('daily_date')!==todayKey){setData('daily_done','0');setData('daily_date',todayKey);dailyDone=0;}
 
-function renderFlashcard(){
-  cards=getData('flashcards')||[];
+async function loadFlashcards(){
+  try{
+    const res=await fetch('/api/flashcards');
+    if(res.ok)cards=await res.json();
+    else cards=getData('flashcards')||[];
+  }catch(e){
+    cards=getData('flashcards')||[];
+  }
+}
+
+async function loadProgress(){
+  try{
+    const res=await fetch('/api/progress');
+    if(res.ok){
+      const data=await res.json();
+      dailyDone=data.daily_done||0;
+      const progressDate=data.daily_date||'';
+      if(progressDate!==todayKey){
+        await fetch('/api/progress',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({daily_done:0,daily_date:todayKey})});
+        dailyDone=0;
+      }
+    }else{
+      dailyDone=parseInt(getData('daily_done')||'0');
+      if(getData('daily_date')!==todayKey){setData('daily_done','0');setData('daily_date',todayKey);dailyDone=0;}
+    }
+  }catch(e){
+    dailyDone=parseInt(getData('daily_done')||'0');
+    if(getData('daily_date')!==todayKey){setData('daily_done','0');setData('daily_date',todayKey);dailyDone=0;}
+  }
+}
+
+async function renderFlashcard(){
+  await loadFlashcards();
   const area=document.getElementById('card-area');
   const grade=document.getElementById('grade-btns');
   const counter=document.getElementById('card-counter');
-  updateProgress();
+  await updateProgress();
   if(!cards.length){
     area.innerHTML=`<div class="empty-flash"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg><p>No flashcards yet. Have a conversation or save vocabulary words to fill your deck!</p></div>`;
     grade.style.display='none';counter.textContent='';return;
@@ -528,31 +638,78 @@ function renderFlashcard(){
   counter.textContent=`Card ${cardIdx+1} of ${cards.length}`;
 }
 
+// Preserve flashcard state when switching panels
+let preservedCardIdx=0;
+let preservedCardFlipped=false;
+
+function preserveFlashcardState(){
+  preservedCardIdx=cardIdx;
+  preservedCardFlipped=cardFlipped;
+}
+
+function restoreFlashcardState(){
+  cardIdx=preservedCardIdx;
+  cardFlipped=preservedCardFlipped;
+}
+
 function flipCard(){
   cardFlipped=!cardFlipped;
   const fc=document.getElementById('flashcard');
   if(fc)fc.classList.toggle('flipped',cardFlipped);
 }
 
-function gradeCard(grade){
-  cards=getData('flashcards')||[];
-  if(grade==='easy'){cards.splice(cardIdx,1);dailyDone++;setData('daily_done',String(dailyDone));if(cardIdx>=cards.length)cardIdx=0;}
-  else if(grade==='hard'){const c=cards.splice(cardIdx,1)[0];cards.push(c);if(cardIdx>=cards.length)cardIdx=0;}
-  else{cardIdx=(cardIdx+1)%Math.max(1,cards.length);}
-  setData('flashcards',cards);updateBadge();renderFlashcard();
+async function gradeCard(grade){
+  await loadFlashcards();
+  if(grade==='easy'){
+    const card=cards[cardIdx];
+    cards.splice(cardIdx,1);
+    dailyDone++;
+    try{
+      await fetch('/api/flashcards/'+card.id,{method:'DELETE'});
+      await fetch('/api/progress',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({daily_done:dailyDone,daily_date:todayKey})});
+    }catch(e){
+      setData('flashcards',cards);
+      setData('daily_done',String(dailyDone));
+    }
+    if(cardIdx>=cards.length)cardIdx=0;
+  }else if(grade==='hard'){
+    const c=cards.splice(cardIdx,1)[0];
+    cards.push(c);
+    try{
+      await fetch('/api/flashcards',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(c)});
+    }catch(e){
+      setData('flashcards',cards);
+    }
+    if(cardIdx>=cards.length)cardIdx=0;
+  }else{
+    cardIdx=(cardIdx+1)%Math.max(1,cards.length);
+  }
+  updateBadge();renderFlashcard();
 }
 
-function updateProgress(){
+async function updateProgress(){
+  await loadProgress();
   const pct=Math.min(100,Math.round(dailyDone/10*100));
   document.getElementById('prog-fill').style.width=pct+'%';
   document.getElementById('prog-text').textContent=Math.min(dailyDone,10)+' / 10';
 }
 
-function exportData(){
-  const blob=new Blob([JSON.stringify({flashcards:getData('flashcards')||[],vocabulary:getData('vocab')||[],exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
+async function exportData(){
+  let flashcards=[],vocabulary=[];
+  try{
+    const fcRes=await fetch('/api/flashcards');
+    if(fcRes.ok)flashcards=await fcRes.json();
+    const vocRes=await fetch('/api/vocabulary');
+    if(vocRes.ok)vocabulary=await vocRes.json();
+  }catch(e){
+    flashcards=getData('flashcards')||[];
+    vocabulary=getData('vocab')||[];
+  }
+  const blob=new Blob([JSON.stringify({flashcards,vocabulary,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='english-lab-data.json';a.click();
 }
 
+loadChatHistory();
 renderSavedWords();
 </script>
 </body>
