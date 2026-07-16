@@ -1,5 +1,6 @@
 """Migrate data from local SQLite instance/english_lab.db to a Render Postgres database."""
 import argparse
+import importlib.util
 import os
 import sys
 
@@ -17,6 +18,15 @@ if PROJECT_ROOT not in sys.path:
 
 # Import models after Flask-SQLAlchemy has had a chance to define the mapping.
 from models import ChatMessage, Flashcard, UserProgress, Vocabulary, db
+
+
+def _postgres_driver() -> str:
+    """Return the SQLAlchemy Postgres driver to use based on installed packages."""
+    if importlib.util.find_spec('psycopg2'):
+        return 'postgresql'
+    if importlib.util.find_spec('psycopg'):
+        return 'postgresql+psycopg'
+    return 'postgresql'
 
 
 def sqlite_url(path: str) -> str:
@@ -107,8 +117,16 @@ def main():
         sys.exit(1)
 
     pg_url = args.pg_url
+    driver = _postgres_driver()
     if pg_url.startswith("postgres://"):
-        pg_url = pg_url.replace("postgres://", "postgresql://", 1)
+        pg_url = pg_url.replace("postgres://", f"{driver}://", 1)
+    elif pg_url.startswith("postgresql://") and driver != "postgresql":
+        pg_url = pg_url.replace("postgresql://", f"{driver}://", 1)
+
+    # Render requires SSL for external Postgres connections.
+    if "sslmode=" not in pg_url:
+        separator = "&" if "?" in pg_url else "?"
+        pg_url += f"{separator}sslmode=require"
 
     source_engine = create_engine(sqlite_url(args.sqlite))
     target_engine = create_engine(pg_url)

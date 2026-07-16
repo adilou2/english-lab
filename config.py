@@ -1,15 +1,29 @@
+import importlib.util
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
+
+def _postgres_driver():
+    """Return the SQLAlchemy Postgres driver to use based on installed packages."""
+    if importlib.util.find_spec('psycopg2'):
+        return 'postgresql'
+    if importlib.util.find_spec('psycopg'):
+        return 'postgresql+psycopg'
+    return 'postgresql'
+
+
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
-    
-    # Database configuration - handle Render's PostgreSQL URL
+
+    # Database configuration - handle Render's PostgreSQL URL and available driver
     database_url = os.environ.get('DATABASE_URL')
+    driver = _postgres_driver()
     if database_url and database_url.startswith('postgres://'):
-        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        database_url = database_url.replace('postgres://', f'{driver}://', 1)
+    elif database_url and database_url.startswith('postgresql://') and driver != 'postgresql':
+        database_url = database_url.replace('postgresql://', f'{driver}://', 1)
     SQLALCHEMY_DATABASE_URI = database_url or 'sqlite:///english_lab.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     

@@ -4,4 +4,4 @@ python-dotenv==1.0.0
 waitress==2.1.2
 gunicorn==22.0.0
 requests==2.34.2
-psycopg2-binary==2.9.9
+psycopg[binary]==3.3.4
