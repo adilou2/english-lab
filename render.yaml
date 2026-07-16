@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: english-lab
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: english-lab-db
+          property: connectionString
+
+databases:
+  - name: english-lab-db
+    databaseName: english_lab
+    plan: free

@@ -80,14 +80,37 @@ document.addEventListener('DOMContentLoaded', () => {
     renderSavedWords();
   }
   if (document.getElementById('flash-panel')) {
+    restoreFlashcardState();
     renderFlashcard();
   }
+  if (document.getElementById('chat-messages')) {
+    loadChatHistory();
+  }
 });
+
+window.addEventListener('beforeunload', preserveFlashcardState);
 
 // ── CONVERSATION ──
 let recognition = null;
 let isRecording = false;
 const chatHistory = [];
+
+async function loadChatHistory() {
+  try {
+    const messages = await getData('/chat/history');
+    const wrap = document.getElementById('chat-messages');
+    if (messages && messages.length && wrap) {
+      wrap.innerHTML = '';
+      chatHistory.length = 0;
+      messages.forEach(m => {
+        chatHistory.push({ role: m.role, content: m.content });
+        appendMsg(m.content, m.role);
+      });
+    }
+  } catch (e) {
+    console.log('Failed to load chat history:', e);
+  }
+}
 
 (function initSpeech() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -349,6 +372,22 @@ let cardIdx = 0;
 let cardFlipped = false;
 let dailyDone = 0;
 
+// Preserve flashcard state when navigating
+function preserveFlashcardState() {
+  sessionStorage.setItem('flashcardIdx', cardIdx);
+  sessionStorage.setItem('flashcardFlipped', cardFlipped);
+}
+
+function restoreFlashcardState() {
+  const idx = sessionStorage.getItem('flashcardIdx');
+  const flipped = sessionStorage.getItem('flashcardFlipped');
+  if (idx !== null) cardIdx = parseInt(idx, 10) || 0;
+  if (flipped !== null) cardFlipped = flipped === 'true';
+}
+
+window.addEventListener('beforeunload', preserveFlashcardState);
+window.addEventListener('pagehide', preserveFlashcardState);
+
 async function renderFlashcard() {
   cards = await getData('/flashcards') || [];
   const area = document.getElementById('card-area');
@@ -372,11 +411,12 @@ async function renderFlashcard() {
   
   if (cardIdx >= cards.length) cardIdx = 0;
   const card = cards[cardIdx];
-  cardFlipped = false;
   area.innerHTML = `<div class="card-stack"><div class="flashcard" id="flashcard" onclick="flipCard()">
-    <div class="card-front"><p>${card.front}</p><div class="card-hint">Tap to reveal</div></div>
+    <div class="card-front"><p style="text-align:left;word-break:break-word">${card.front}</p><div class="card-hint">Tap to reveal</div></div>
     <div class="card-back"><div class="correction">${card.back}</div><p>${card.explanation || ''}</p></div>
   </div></div>`;
+  const fc = document.getElementById('flashcard');
+  if (fc) fc.classList.toggle('flipped', cardFlipped);
   grade.style.display = 'flex';
   counter.textContent = `Card ${cardIdx + 1} of ${cards.length}`;
 }
@@ -385,6 +425,7 @@ function flipCard() {
   cardFlipped = !cardFlipped;
   const fc = document.getElementById('flashcard');
   if (fc) fc.classList.toggle('flipped', cardFlipped);
+  preserveFlashcardState();
 }
 
 async function gradeCard(grade) {
@@ -412,6 +453,8 @@ async function gradeCard(grade) {
   }
   
   updateBadge();
+  cardFlipped = false;
+  preserveFlashcardState();
   renderFlashcard();
 }
 

@@ -91,11 +91,11 @@ body{font-family:system-ui,sans-serif;background:#f5f5f4;color:#1c1c1a;display:f
 .progress-bar-bg{height:6px;background:#e0ddd8;border-radius:999px;overflow:hidden}
 .progress-bar-fill{height:100%;background:#1c1c1a;border-radius:999px;transition:width 0.4s ease}
 .card-stack{position:relative;width:100%;max-width:480px;margin:0 auto;height:240px}
-.flashcard{position:absolute;inset:0;background:#fff;border:0.5px solid #e0ddd8;border-radius:16px;display:flex;align-items:center;justify-content:center;padding:2rem;cursor:pointer;transition:transform 0.6s;transform-style:preserve-3d;user-select:none}
+.flashcard{position:absolute;inset:0;background:#fff;border:0.5px solid #e0ddd8;border-radius:16px;cursor:pointer;transition:transform 0.6s;transform-style:preserve-3d;user-select:none}
 .flashcard.flipped{transform:rotateY(180deg)}
-.card-front,.card-back{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;backface-visibility:hidden;border-radius:16px}
-.card-back{transform:rotateY(180deg);background:#f9f8f6}
-.card-front p{font-size:16px;line-height:1.7;text-align:center;color:#333}
+.card-front{position:absolute;inset:0;padding:2rem;overflow-y:auto;text-align:left;backface-visibility:hidden;border-radius:16px;background:#fff}
+.card-back{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;backface-visibility:hidden;border-radius:16px;transform:rotateY(180deg);background:#f9f8f6}
+.card-front p{font-size:18px;line-height:1.6;text-align:left;color:#333;word-break:break-word}
 .card-back p{font-size:14px;line-height:1.7;text-align:center;color:#555}
 .card-back .correction{font-size:18px;font-weight:500;color:#16a34a;margin-bottom:8px;text-align:center}
 .card-hint{font-size:12px;color:#aaa;margin-top:12px}
